@@ -1,0 +1,36 @@
+{
+  "encodingVersion": 3,
+  "observationSize": 1054,
+  "actionSize": 105,
+  "historySize": 71,
+  "base": {"observation": 922, "action": 81, "history": 71},
+  "smallHandExactLimit": 12,
+  "handFeatures": [
+    "cards/27", "one_play_cover", "two_play_cover_or_unknown",
+    "partition_turns_clipped_at_6/6", "partition_is_exact", "has_five_card_play",
+    "highest_strength/21", "trump_count/12"
+  ],
+  "privateEvents": {
+    "slots": ["tribute", "return"],
+    "fields": ["card_type_one_hot_54", "other_seat_relative_one_hot_6", "sent", "received"],
+    "absent": "all zeros; unrelated transfers and physical card IDs are never encoded"
+  },
+  "actionFeatures": [
+    "hand_count_before/27", "hand_count_after/27", "cards_removed/5",
+    "small_jokers_used/3", "big_jokers_used/3", "trumps_used/12",
+    "small_jokers_left/3", "big_jokers_left/3", "trumps_left/12",
+    "action_category/6", "overtakes_teammate", "overtakes_opponent",
+    "actor_finishes_hand", "team_completes_if_played", "live_teammate_min_count/27",
+    "live_opponent_min_count/27", "remaining_one_play_cover",
+    "remainder_partition_turns_clipped_at_6/6", "remaining_has_pair",
+    "remaining_has_triple", "remaining_has_five_card_play", "remaining_highest_strength/21",
+    "next_active_holder_if_finishing_is_ally", "current_target_size/5"
+  ],
+  "semantics": {
+    "partition": "Exact minimum number of uninterrupted lead plays when the original decision hand has <=12 cards. Above this bound, use a constructive rank-group upper bound; never a prediction of success. One-play cover is always exact.",
+    "twoPlayUnknown": -1,
+    "nonPlay": "Pass and ask leave the hand unchanged. Return hypothetically removes the card but never counts as finishing or overtaking.",
+    "role": "Contextual opportunity facts only; no fixed seat role, no heuristic action label and no change to the team reward.",
+    "counts": "Use public counts adjusted for transfers in flight. Empty side minimum is zero."
+  }
+}

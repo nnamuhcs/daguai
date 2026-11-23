@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150" fill="none">
+  <g stroke="#35463f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M17 127c4-21 14-32 33-32s29 11 33 32l-15 10-18-7-18 7z" fill="#53665d"/>
+    <path d="m26 104 12 15 12-18 12 18 12-15-8-13H34z" fill="#f0eee3"/>
+    <path d="M30 58c-8-5-12 1-9 9 1 5 5 8 10 8m39-17c8-5 12 1 9 9-1 5-5 8-10 8" fill="#deded0"/>
+    <path d="M29 50v24c0 17 10 27 21 27s21-10 21-27V50z" fill="#faf7e9"/>
+    <path d="M26 58C16 44 12 36 9 24c14 3 24 10 30 21C38 29 42 16 50 8c8 8 12 21 11 37 6-11 16-18 30-21-3 12-7 20-17 34z" fill="#53665d"/>
+    <path d="M39 45c-1-16 3-29 11-37 8 8 12 21 11 37l-11 9z" fill="#c1c8b9"/>
+    <path d="m27 56 11-8 12 8 12-8 11 8-3 9H30z" fill="#e6e8da"/>
+    <path d="m34 72 7-3 5 3m8 0 5-3 7 3"/>
+    <path d="m49 74-3 9h7" stroke="#97a08a"/>
+    <path d="M38 88c8 7 16 7 24 0"/>
+    <path d="m44 124 6-7 6 7-6 7z" fill="#e4e7d9"/>
+    <circle cx="9" cy="24" r="4" fill="#bbc3b1"/>
+    <circle cx="50" cy="8" r="4" fill="#bbc3b1"/>
+    <circle cx="91" cy="24" r="4" fill="#bbc3b1"/>
+    <circle cx="26" cy="104" r="3" fill="#bbc3b1"/>
+    <circle cx="74" cy="104" r="3" fill="#bbc3b1"/>
+  </g>
+  <path d="M13 137c-5 5-5 7 0 6 5 1 5-1 0-6m-2 8h4m72-8c-5 5-5 7 0 6 5 1 5-1 0-6m-2 8h4" fill="#53665d" stroke="#53665d"/>
+  <text x="50" y="147" text-anchor="middle" fill="#35463f" font-family="Georgia,serif" font-size="9" letter-spacing="2">JOKER</text>
+</svg>

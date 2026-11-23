@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Daguai training replays</title>
+<style>
+body{font:16px system-ui,sans-serif;background:#10202c;color:#edf6fa;margin:20px}
+a{color:#8ed8ff}.layout{display:grid;grid-template-columns:260px 1fr;gap:20px}
+aside,section{background:#182e3e;border-radius:12px;padding:18px}
+button,select,input{font:inherit;padding:7px;border-radius:6px}button{cursor:pointer}
+#games{max-height:70vh;overflow:auto}#games button{display:block;width:100%;margin:6px 0;text-align:left}
+.hands{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:12px}.hand{background:#233e50;padding:12px;border-radius:8px}
+.hand.active{outline:3px solid #91dfbb}.hand h3{margin:0 0 10px}.cards{display:flex;flex-wrap:wrap;gap:4px}
+.card{background:#f5f1e8;color:#18202a;border-radius:5px;padding:6px;min-width:25px;text-align:center;font-weight:bold}
+.red{color:#bc243a}.blue{color:#80d3fa}.orange{color:#ffc38a}.muted{color:#a7bfcb}
+#slider{width:100%}.controls{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#error{color:#ff9c9c}
+#logs{max-height:180px;overflow:auto}.target{min-height:50px;margin:12px 0}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.hands{grid-template-columns:repeat(2,minmax(130px,1fr))}#games{max-height:200px}}
+</style>
+</head>
+<body>
+<h1>Daguai: actual training-game replays</h1>
+<p><a href="/">Back to learning progress</a></p>
+<p class="muted">This is an omniscient offline viewer. The policy never receives other players' hands.
+Games appear only after a complete round and its training batch are saved.</p>
+<p id="error"></p>
+<div class="layout">
+<aside><label>Game ID <input id="search" type="search" placeholder="Find any game" style="width:90%"></label>
+<p><label>Filter <select id="filter"><option value="all">All outcomes</option><option value="0">Blue won</option><option value="1">Orange won</option><option value="draw">Draw</option></select></label></p>
+<p id="count">Loading...</p><div id="games"></div></aside>
+<main>
+<section><h2 id="title">Choose a recorded game</h2><p id="info"></p><p id="result"></p>
+<div class="controls"><button id="previous">Previous turn</button><button id="play">Play</button><button id="next">Next turn</button>
+<label>Speed <select id="speed"><option value="1200">Slow</option><option value="600" selected>Normal</option><option value="200">Fast</option></select></label></div>
+<input id="slider" type="range" min="0" max="0" value="0"><p id="turn"></p>
+<div class="target cards" id="target"></div><div class="hands" id="hands"></div>
+<h3>Latest messages</h3><div id="logs"></div></section>
+</main></div>
+<script>
+const names=['You','Ah Cheng','Xiao Man','Lao Zhou','Ah Lan','Xiao Lin'],suits=['♠','♥','♣','♦'];
+const el=id=>document.getElementById(id);let games=[],replay=null,deck=new Map(),frame=0,timer=null;
+function stop(){clearTimeout(timer);timer=null;el('play').textContent='Play';}
+function card(id){
+ const c=deck.get(id);if(!c)throw Error('Unknown recorded physical card '+id);
+ const span=document.createElement('span');span.className='card'+([1,3].includes(c.suit)?' red':'');
+ const rank=c.rank===19?'Small Joker':c.rank===20?'Big Joker':({11:'J',12:'Q',13:'K',14:'A'}[c.rank]??c.rank);
+ span.textContent=(c.rank>14?'':suits[c.suit])+rank;span.title='Physical card '+id;return span;
+}
+function initialState(game){
+ return {...game,hands:game.hands.map(h=>h.map(c=>c.id)),target:game.target?{ids:game.target.cards.map(c=>c.id),type:game.target.type}:null};
+}
+function render(){
+ if(!replay)return;const entry=frame?replay.steps[frame-1]:null,state=entry?entry.state:initialState(replay.initial.game);
+ el('slider').value=frame;el('title').textContent='Game '+replay.metadata.episodeId;
+ el('info').textContent='Seed '+replay.metadata.seed+' | '+replay.metadata.mode+
+ ' | level '+state.level+' | '+(replay.metadata.continued?'real continuation / tribute':'fresh deal');
+ el('result').textContent=state.over?'Final result: '+(state.result.winner==null?'Draw':state.result.winner===0?'Blue won':'Orange won')+
+ ' | finishing order '+state.order.map(p=>names[p]).join(' → '):'Round in progress; no future result shown.';
+ el('turn').textContent='Turn '+frame+' / '+replay.steps.length+(entry?' | '+names[entry.actor]+' '+entry.kind:' | initial deal')+
+ ' | '+state.phase;
+ el('target').replaceChildren();if(state.target){for(const id of state.target.ids)el('target').appendChild(card(id));}
+ else el('target').textContent=state.phase==='returning'?'Returning tribute':'Free lead / cleared trick';
+ el('hands').replaceChildren();
+ state.hands.forEach((hand,seat)=>{
+ const box=document.createElement('div');box.className='hand'+(state.turn===seat&&!state.over?' active':'');
+ const title=document.createElement('h3');title.className=seat%2?'orange':'blue';
+ title.textContent=names[seat]+' · '+hand.length+' cards'+
+ (replay.metadata.controlledSeats.includes(seat)?' · learner':' · opponent/heuristic')+
+ (state.order.includes(seat)?' · finished #'+(state.order.indexOf(seat)+1):'');
+ const cards=document.createElement('div');cards.className='cards';
+ for(const id of hand)cards.appendChild(card(id));box.append(title,cards);el('hands').appendChild(box);
+ });
+ el('logs').replaceChildren();for(const message of (state.logs??[]).slice(-8).reverse()){
+ const line=document.createElement('p');line.textContent=message;el('logs').appendChild(line);
+ }
+}
+function tick(){if(!replay||frame>=replay.steps.length){stop();return;}frame++;render();timer=setTimeout(tick,Number(el('speed').value));}
+async function load(name){
+ stop();const response=await fetch('/api/replays/'+name);if(!response.ok)throw Error('Replay HTTP '+response.status);
+ replay=await response.json();deck=new Map([...replay.initial.game.hands.flat(),...replay.initial.game.played].map(c=>[c.id,c]));
+ frame=0;el('slider').max=replay.steps.length;render();
+}
+function renderList(){
+ const filtered=games.filter(g=>String(g.episodeId).includes(el('search').value.trim())&&
+ (el('filter').value==='all'||(el('filter').value==='draw'?g.winner==null:String(g.winner)===el('filter').value)));
+ el('count').textContent=games.length+' complete recorded games | '+filtered.length+' shown';
+ el('games').replaceChildren();
+ for(const game of filtered){
+ const b=document.createElement('button');b.textContent='#'+game.episodeId+' · '+(game.winner==null?'Draw':game.winner===0?'Blue win':'Orange win')+' · '+game.steps+' turns';
+ b.onclick=()=>load('game-'+String(game.episodeId).padStart(9,'0')).catch(e=>el('error').textContent=String(e));el('games').appendChild(b);
+ }
+}
+async function refresh(){
+ try{const r=await fetch('/api/replays',{cache:'no-store'});if(!r.ok)throw Error('Replay list HTTP '+r.status);
+ games=await r.json();renderList();el('error').textContent='';}
+ catch(e){el('error').textContent=String(e);}finally{setTimeout(refresh,5000);}
+}
+el('filter').onchange=renderList;el('search').oninput=renderList;el('slider').oninput=()=>{stop();frame=Number(el('slider').value);render();};
+el('previous').onclick=()=>{stop();frame=Math.max(0,frame-1);render();};
+el('next').onclick=()=>{stop();if(replay)frame=Math.min(replay.steps.length,frame+1);render();};
+el('play').onclick=()=>{if(timer){stop();return;}if(!replay)return;if(frame>=replay.steps.length)frame=0;el('play').textContent='Pause';timer=setTimeout(tick,Number(el('speed').value));};
+refresh();
+</script>
+</body></html>

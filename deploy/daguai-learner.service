@@ -1,0 +1,15 @@
+[Unit]
+Description=Daguai continual learning (local CUDA, guarded tournament selection)
+StartLimitIntervalSec=900
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=%h/daguai-web
+ExecStart=%h/daguai-web/.venv/bin/python %h/daguai-web/training/continuous_learn.py --device cuda
+Restart=on-failure
+RestartSec=120
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

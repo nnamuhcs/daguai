@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daguai AI — Learning dashboard</title>
+<style>
+  :root{color-scheme:dark;--bg:#0c1920;--panel:#142731;--line:#304650;--ink:#eef6f5;--soft:#b4c8cc;--mint:#8be1be;--amber:#ffd597;--red:#ffaaa7}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+  main{max-width:1000px;margin:0 auto;padding:clamp(18px,4vw,42px)}
+  h1,h2,p{margin:0 0 .6em}
+  h1{font-size:clamp(2rem,5vw,3rem);line-height:1.05;letter-spacing:-.04em}
+  h2{font-size:1.18rem}
+  .kicker{color:var(--mint);font-size:.78rem;font-weight:750;letter-spacing:.14em;text-transform:uppercase}
+  .muted,small{color:var(--soft)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:clamp(15px,3vw,24px);margin-bottom:14px}
+  .grid section{margin:0}
+  .verdict{font-size:clamp(1.45rem,4vw,2rem);font-weight:700;line-height:1.2}
+  .large{font-size:1.65rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .good{color:var(--mint)}.warn{color:var(--amber)}.error{color:var(--red)}
+  progress{width:100%;height:14px;accent-color:var(--mint)}
+  .history{margin-top:14px}.scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;white-space:nowrap;font-variant-numeric:tabular-nums}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+  th{color:var(--soft);font-size:.85rem}th:first-child,td:first-child{padding-left:0}
+  a{color:var(--mint);text-underline-offset:3px}
+  footer{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker">Daguai AI · Live training</p>
+    <h1>Is the AI getting better?</h1>
+    <p class="muted">Three trained players against three original web AI players. The two sides swap seats on the same deals.</p>
+  </header>
+  <section aria-labelledby="result-title">
+    <h2 id="result-title">What the matches say</h2>
+    <p id="verdict" class="verdict">Loading results…</p>
+    <p id="explanation" class="muted"></p>
+    <p id="record" hidden></p>
+  </section>
+  <div class="grid">
+    <section aria-labelledby="activity-title">
+      <h2 id="activity-title">What’s happening now</h2>
+      <p id="activity">Connecting…</p>
+      <progress id="progress" aria-label="Games completed in this stage" hidden></progress>
+      <p id="counts" class="muted"></p>
+    </section>
+    <section aria-labelledby="champion-title">
+      <h2 id="champion-title">Current champion</h2>
+      <p id="champion" class="large">—</p>
+      <p id="champion-note" class="muted"></p>
+      <small>The learner never changes the browser AI automatically.</small>
+    </section>
+  </div>
+  <section class="history" aria-labelledby="history-title">
+    <h2 id="history-title">Recent 3-vs-3 results</h2>
+    <p id="empty" class="muted">The first evaluation hasn’t finished yet.</p>
+    <div id="results" class="scroll" hidden>
+      <table>
+        <thead><tr><th scope="col">Cycle</th><th scope="col">New AI</th><th scope="col">Incumbent</th><th scope="col">Change (95% range)</th><th scope="col">Decision</th></tr></thead>
+        <tbody id="history"></tbody>
+      </table>
+      <p class="muted"><small>Both scores are against the original web AI on the same deals. A win is 1 point, a draw is half, and a loss is 0. A range that crosses or touches zero doesn’t establish a gain or loss.</small></p>
+    </div>
+  </section>
+  <p id="error" class="error" role="status"></p>
+  <footer>
+    <a id="replays" href="/replays">Training game replays</a>
+    <a href="http://localhost:6007">Training charts (TensorBoard)</a>
+    <small id="refreshed">Auto-refreshes every 5 seconds</small>
+  </footer>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const count = n => n.toLocaleString();
+const percent = n => (100 * n).toFixed(1) + '%';
+const points = n => (n > 0 ? '+' : '') + (100 * n).toFixed(1);
+const range = ([lo, hi]) => `${points(lo)} to ${points(hi)}`;
+const evaluationLabels = {
+  candidate: 'Testing the new AI', incumbent: 'Testing the current champion',
+  'confirmation-candidate': 'Confirming the new AI on fresh deals',
+  'confirmation-incumbent': 'Checking the champion on those same fresh deals',
+};
+
+function render(data) {
+  const latest = data.history.at(-1);
+  const verdict = !latest ? ['Too early to tell', 'The first match evaluation is still pending.', ''] :
+    latest.promoted ? ['Improvement confirmed', `Cycle ${latest.cycle} passed a second evaluation on new deals.`, 'good'] :
+    latest.confirmation95 ? ['No confirmed improvement', `The confirmation result was ${range(latest.confirmation95)} percentage points versus the incumbent.`, 'warn'] :
+    latest.assessment === 'regressed' ? ['The latest AI scored worse', 'The latest match result was below the incumbent. It was not promoted.', 'warn'] :
+    ['No confirmed improvement', 'The latest evaluation didn’t establish that the new AI is better than the incumbent.', ''];
+  $('verdict').textContent = verdict[0];
+  $('verdict').className = `verdict ${verdict[2]}`;
+  $('explanation').textContent = verdict[1];
+  $('record').hidden = !latest?.results;
+  if (latest?.results) {
+    const { wins, losses, draws, games } = latest.results;
+    $('record').textContent = `Latest 3-vs-3 score: ${percent(latest.score)} — ${count(wins)} wins, ${count(losses)} losses, ${count(draws)} draws in ${count(games)} games.`;
+  }
+
+  const activity = data.evaluation ?? data.training;
+  const label = data.evaluation?.rounds === 'continued' ? 'Testing games with tribute and returns' :
+    (evaluationLabels[data.evaluation?.label] ?? (data.training ? 'Training' : 'Preparing the next step'));
+  const numbers = activity ? `: ${count(activity.completedGames)} of ${count(activity.totalGames)} games` : '';
+  $('activity').textContent = data.running ? `Cycle ${data.cycle} · ${label}${numbers}` :
+    data.status === 'failed' ? 'Training stopped with an error.' : 'Learner is not running.';
+  $('progress').hidden = !data.running || !activity;
+  if (activity) {
+    $('progress').max = activity.totalGames;
+    $('progress').value = activity.completedGames;
+  }
+  $('counts').textContent = `${count(data.newTrainingGames)} new training games · ${count(data.completedCycles)} completed cycles`;
+  $('champion').textContent = data.championCycle ? `AI from cycle ${data.championCycle}` : 'Original web AI';
+  $('champion-note').textContent = data.championCycle ? 'Promoted after a separate confirmation.' :
+    `A promising result in ${count(data.evaluationGames)} validation games must hold up in ${count(data.confirmationGames)} separate confirmation games before promotion.`;
+
+  $('empty').hidden = Boolean(latest);
+  $('results').hidden = !latest;
+  $('history').replaceChildren(...[...data.history].reverse().map(row => {
+    const tr = document.createElement('tr');
+    const decision = row.promoted ? 'Promoted' : row.confirmation95 ? 'Not confirmed' : 'Not promoted';
+    for (const text of [row.cycle, percent(row.score), percent(row.incumbentScore),
+        `${points(row.delta)} pp (${range(row.confidence95)})`, decision]) {
+      tr.insertCell().textContent = text;
+    }
+    return tr;
+  }));
+  $('replays').textContent = `Training game replays (${count(data.replayCount)})`;
+  $('refreshed').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+  $('error').textContent = data.error ?? '';
+}
+
+async function refresh() {
+  try {
+    const response = await fetch('/api/progress', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    render(await response.json());
+  } catch (error) {
+    $('error').textContent = `Could not refresh the dashboard (${error.message}). The last displayed numbers may be out of date.`;
+  } finally {
+    setTimeout(refresh, 5000);
+  }
+}
+refresh();
+</script>
+</body>
+</html>

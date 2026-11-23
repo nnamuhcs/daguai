@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#143f36">
+  <meta name="description" content="大怪路子单机网页版，六人三副牌，三对三组队。和五位电脑牌友来一局。">
+  <title>大怪路子 · 弄堂牌局</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23143f36'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='46' fill='%23e8c889'%3E♠%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="大怪路子首页"><span class="brand-mark">♠</span><span>大怪路子<small>弄堂牌局 · SHANGHAI CLASSIC</small></span></a>
+    <div class="header-center"><span class="live-dot"></span> 策略练习场 <span class="divider">/</span> 六人 · 三副牌</div>
+    <nav aria-label="游戏菜单"><button id="pause-button" class="outline-button" aria-pressed="false">暂停看牌</button><button id="rules-button" class="plain-button">玩法说明</button><button id="restart-button" class="outline-button">重新开局</button></nav>
+  </header>
+
+  <main class="layout">
+    <section class="game-area" aria-label="游戏牌桌">
+      <div class="section-heading"><h1>六人牌桌 <span>3 vs 3</span></h1><label class="speed-control">出牌速度 <select id="speed-select"><option value="1200">正常</option><option value="2200">慢速</option><option value="250">快速</option></select></label></div>
+      <div id="finish-strip" class="finish-strip" role="status" aria-live="polite" aria-label="出完顺序"></div>
+      <div class="table-shell">
+        <div class="table-meta"><span id="round-label">第 01 局</span><span id="level-label">当前级牌 2</span><span>进贡 · 问牌</span></div>
+        <div class="felt-table"><div class="table-ring"></div><div class="table-watermark">大怪路子<small>隔座同队 · 同路同行</small></div></div>
+        <div id="seats" class="seats"></div>
+        <div id="trick" class="trick" aria-live="polite"></div>
+        <div id="turn-status" class="turn-status" role="status"></div>
+        <div class="table-caption">逆时针出牌 · 右手边是下家 · 隔座同队</div>
+      </div>
+
+      <section class="hand-panel" aria-label="你的手牌">
+        <div id="tribute-banner" class="tribute-banner" hidden></div>
+        <div class="hand-toolbar"><div class="hand-title"><span class="team-dot teal"></span><strong>我的手牌</strong><span id="hand-count">27 张</span></div><div class="hand-options"><button id="ask-button" class="text-button">问牌</button><button id="sort-button" class="text-button">⇅ 理牌</button><label class="auto-label"><input id="auto-toggle" type="checkbox"><span class="toggle"></span>托管</label></div></div>
+        <div id="hand" class="hand" aria-label="点击选择手牌"></div>
+        <div class="hand-help"><span>横向拖动 / 滑动连选，反向滑动可缩小范围</span><div class="hand-scroll-controls"><button id="hand-left" aria-label="手牌向左滚动">←</button><button id="hand-right" aria-label="手牌向右滚动">→</button></div></div>
+        <div class="play-controls"><div id="selection-label" class="selection-label">点击手牌选择，点击已选牌取消</div><div class="action-buttons"><button id="pass-button" class="action secondary">不出</button><button id="hint-button" class="action hint">✧ 提示</button><button id="play-button" class="action primary">出牌 <span>→</span></button></div><button id="clear-button" class="text-button">取消选择</button></div>
+      </section>
+      <div class="bottom-note"><span id="save-status">牌局自动保存在本机</span><span>Enter 出牌 · Esc 取消选择</span></div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="score-panel"><div class="panel-heading"><h2>同路战队</h2><span>3 vs 3</span></div><div id="scoreboard"></div><div class="score-note">隔座的三位玩家为同一队<br>争头家，送同伴，留后手。</div><div class="model-controls"><label class="speed-control">电脑策略 <select id="ai-select"><option value="heuristic">规则电脑</option><option value="local" disabled>本地训练模型（试验）</option></select></label><button id="reload-model" class="text-button" disabled>重载本地权重</button><p id="ai-status" role="status">正在检查本地模型；默认使用规则电脑。</p></div></section>
+      <section class="recent-panel"><div class="panel-heading"><h2>最近出牌</h2><span>新 → 旧</span></div><ol id="recent-plays" aria-label="按时间倒序的实际出牌记录"></ol></section>
+      <section class="log-panel"><div class="panel-heading"><h2>问牌与牌局动态</h2><span class="live-dot"></span></div><ol id="logs" aria-label="最近牌局动态"></ol></section>
+    </aside>
+  </main>
+
+  <div id="toast" class="toast" role="alert" hidden></div>
+
+  <dialog id="rules-dialog" class="modal rules-modal">
+    <div class="modal-heading"><div><span class="eyebrow">弄堂里的老规矩</span><h2>怎样打大怪路子</h2></div><button class="close-button" data-close="rules-dialog" aria-label="关闭玩法说明">×</button></div>
+    <div class="rules-content">
+      <h3>六人一桌，隔座同队</h3><p>三副含大小王的扑克牌，共 162 张，每人 27 张。你、小满、阿岚为青队；阿诚、老周、小林为橙队。庄家级牌从 2 开始。</p>
+      <h3>只出 1、2、3、5 张</h3><p>单张、对子、三张必须同张数比较。五张牌从大到小：<strong>五同 ＞ 同花顺 ＞ 四带一 ＞ 三带二 ＞ 同花 ＞ 杂顺</strong>。五张牌不能压单张、对子或三张，没有跨张数炸弹。</p>
+      <h3>级牌与百搭</h3><p>大怪 ＞ 小怪 ＞ 级牌 ＞ A ＞ K … ＞ 2。大小怪在组合牌中可百搭；系统自动取最大牌型，同牌型中取最小可成立的解释。纯怪组合以小怪计，纯大怪组合以大怪计。顺子仅五张，A2345 最小，10JQKA 最大；顺子中的级牌按普通点数计算。同花逐张比较点数，不比较花色。</p>
+      <h3>逆时针出牌、下位接风</h3><p><strong>你 → 右下小林 → 右上阿岚 → 老周 → 左上小满 → 左下阿诚 → 你</strong>，按逆时针依次出牌，跳过已出完者，可以不出。一圈无人压过，最后出牌者重新领出；若其已出完，由出牌方向上的下一位仍有牌的玩家接风，<strong>不区分队伍，不优先给队友</strong>。同伴出牌时，电脑考虑让路，也会判断是否需要防守。</p>
+      <h3>问牌：不是随时都能问</h3><p><strong>跟牌时，只有轮到你且手中有牌能压过桌面，才可以问上一位出牌者。</strong>自由领出时，可以询问仍有手牌的己方队友。被问者 10 张以内（含 10）只报张数，超过 10 张答“不报”，不能报牌型。问牌本身向全桌透露你有能力压过当前牌。其他人的当前张数不会自动显示，回答之后若其再次出牌，显示的报数即失效。电脑只用自己的牌、公开出牌记录和合法问牌，不看暗牌。</p>
+      <h3>名次、关住与升级</h3><p><strong>任一队三人全部出完，本局立即结束</strong>，其余有牌者被关住。若完成的一队含头家，该队获胜；头家在被关住的一队则平局。庄家获胜升一级；非庄家取得头家则换庄、不升级；庄家取得头家但平局则保级。打过 K 即通关。被关住者的展示顺序按从头家起的出牌座位顺序排列，不是假装他们已出完。</p>
+      <h3>单贡、双贡与三贡</h3><p>获胜方关住几个对手，就有几个对手下局进贡；平局不进贡。新局发牌后，系统自动从进贡者手中取最大的一张（按<strong>新局级牌</strong>比较）。受贡者为获胜方最先出完的对应几人；进贡者从头家起按逆时针座位顺序依次处理，匹配逆时针最近的尚未受贡者，保证一人一贡。</p>
+      <h3>手选还贡</h3><p>受贡者收到贡牌后，从手牌中自选一张还给原进贡者，不能将刚收到的贡牌原样退回。电脑会考虑剩余牌的组合，而不只是扔最小单张。所有还贡完成后，每人恢复 27 张，由上局头家先出。</p>
+      <div class="rule-note"><strong>本桌约定与电脑策略</strong><p>各地接风、配贡与通关上限有所不同，本桌以以上规则为准。电脑采用有限拆牌搜索、公开记牌、未知牌抽样和队友让路策略，并非职业高手。牌局保存在当前浏览器，进贡、还贡中也能刷新续局。</p><p>参考：<a href="https://qqgameplatcdn.qq.com/hallhelp/rulechess/rule159.html" target="_blank" rel="noreferrer">QQ 游戏规则</a> · <a href="https://wenku.baidu.com/view/af03fdd949fe04a1b0717fd5360cba1aa8118cd5.html" target="_blank" rel="noreferrer">问牌与战术说明</a></p></div>
+    </div>
+    <button class="action primary full-width" data-close="rules-dialog">明白了，开打</button>
+  </dialog>
+
+  <dialog id="result-dialog" class="modal result-modal">
+    <span class="result-emblem">♠</span><span class="eyebrow">这一局，打得漂亮</span><h2 id="result-title"></h2><p id="result-message"></p><div id="ranking" class="ranking"></div><button id="next-button" class="action primary full-width">再来一局 →</button><button class="text-button" data-close="result-dialog">回看牌桌</button>
+  </dialog>
+  <dialog id="restart-dialog" class="modal restart-modal"><h2>重新开一桌？</h2><p>当前牌局和双方等级将重置，从打 2 开始。</p><div class="action-buttons"><button class="action secondary" data-close="restart-dialog">继续本局</button><button id="confirm-restart" class="action primary">重新开始</button></div></dialog>
+  <dialog id="ask-dialog" class="modal restart-modal"><div class="modal-heading"><h2>问哪位同伴？</h2><button class="close-button" data-close="ask-dialog" aria-label="关闭问牌">×</button></div><p>领出时可以问队友。只报张数，超过 10 张不报。</p><div id="ask-choices" class="action-buttons"></div></dialog>
+  <noscript>请启用 JavaScript 后开始牌局。</noscript>
+</body>
+</html>
