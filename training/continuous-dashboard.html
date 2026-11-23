@@ -25,6 +25,7 @@
   table{border-collapse:collapse;width:100%;white-space:nowrap;font-variant-numeric:tabular-nums}
   th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
   th{color:var(--soft);font-size:.85rem}th:first-child,td:first-child{padding-left:0}
+  td small{display:block}
   a{color:var(--mint);text-underline-offset:3px}
   footer{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
   @media(max-width:600px){.grid{grid-template-columns:1fr}}
@@ -41,6 +42,7 @@
     <h2 id="result-title">What the matches say</h2>
     <p id="verdict" class="verdict">Loading results…</p>
     <p id="explanation" class="muted"></p>
+    <p id="confirmation-record" hidden></p>
     <p id="record" hidden></p>
   </section>
   <div class="grid">
@@ -62,10 +64,10 @@
     <p id="empty" class="muted">The first evaluation hasn’t finished yet.</p>
     <div id="results" class="scroll" hidden>
       <table>
-        <thead><tr><th scope="col">Cycle</th><th scope="col">New AI</th><th scope="col">Incumbent</th><th scope="col">Change (95% range)</th><th scope="col">Decision</th></tr></thead>
+        <thead><tr><th scope="col">Cycle</th><th id="first-test" scope="col">First test</th><th id="confirmation-test" scope="col">Confirmation</th><th scope="col">Decision</th></tr></thead>
         <tbody id="history"></tbody>
       </table>
-      <p class="muted"><small>Both scores are against the original web AI on the same deals. A win is 1 point, a draw is half, and a loss is 0. A range that crosses or touches zero doesn’t establish a gain or loss.</small></p>
+      <p class="muted"><small>Each cell shows new AI vs. incumbent, both playing the original web AI on the same deals with sides swapped. Confirmation uses different deals from the first test and decides promotion. A win is 1 point, a draw is half, and a loss is 0. A 95% range that crosses or touches zero doesn’t establish a gain or loss.</small></p>
     </div>
   </section>
   <p id="error" class="error" role="status"></p>
@@ -81,6 +83,21 @@ const count = n => n.toLocaleString();
 const percent = n => (100 * n).toFixed(1) + '%';
 const points = n => (n > 0 ? '+' : '') + (100 * n).toFixed(1);
 const range = ([lo, hi]) => `${points(lo)} to ${points(hi)}`;
+const record = ({ wins, losses, draws, games }) =>
+  `${count(wins)} wins, ${count(losses)} losses, ${count(draws)} draws in ${count(games)} games`;
+
+function showComparison(cell, comparison) {
+  if (!comparison) {
+    cell.textContent = 'Not run';
+    return;
+  }
+  const showScore = score => score == null ? 'Unavailable' : percent(score);
+  cell.textContent = `${showScore(comparison.score)} vs. ${showScore(comparison.incumbentScore)}`;
+  const change = document.createElement('small');
+  change.textContent = `${points(comparison.delta)} pp (${range(comparison.confidence95)})`;
+  cell.append(change);
+}
+
 const evaluationLabels = {
   candidate: 'Testing the new AI', incumbent: 'Testing the current champion',
   'confirmation-candidate': 'Confirming the new AI on fresh deals',
@@ -89,18 +106,24 @@ const evaluationLabels = {
 
 function render(data) {
   const latest = data.history.at(-1);
+  const confirmation = latest?.confirmation;
   const verdict = !latest ? ['Too early to tell', 'The first match evaluation is still pending.', ''] :
     latest.promoted ? ['Improvement confirmed', `Cycle ${latest.cycle} passed a second evaluation on new deals.`, 'good'] :
-    latest.confirmation95 ? ['No confirmed improvement', `The confirmation result was ${range(latest.confirmation95)} percentage points versus the incumbent.`, 'warn'] :
+    confirmation ? ['No confirmed improvement', `The confirmation result was ${points(confirmation.delta)} percentage points versus the incumbent (95% range: ${range(confirmation.confidence95)}).`, 'warn'] :
     latest.assessment === 'regressed' ? ['The latest AI scored worse', 'The latest match result was below the incumbent. It was not promoted.', 'warn'] :
     ['No confirmed improvement', 'The latest evaluation didn’t establish that the new AI is better than the incumbent.', ''];
   $('verdict').textContent = verdict[0];
   $('verdict').className = `verdict ${verdict[2]}`;
   $('explanation').textContent = verdict[1];
+  $('confirmation-record').hidden = !confirmation;
+  if (confirmation) {
+    $('confirmation-record').textContent = confirmation.results
+      ? `Cycle ${latest.cycle} confirmation: ${percent(confirmation.score)} — ${record(confirmation.results)} on new deals.`
+      : `Cycle ${latest.cycle} confirmation completed, but the match report is unavailable.`;
+  }
   $('record').hidden = !latest?.results;
   if (latest?.results) {
-    const { wins, losses, draws, games } = latest.results;
-    $('record').textContent = `Latest 3-vs-3 score: ${percent(latest.score)} — ${count(wins)} wins, ${count(losses)} losses, ${count(draws)} draws in ${count(games)} games.`;
+    $('record').textContent = `Cycle ${latest.cycle} first test: ${percent(latest.score)} — ${record(latest.results)}.`;
   }
 
   const activity = data.evaluation ?? data.training;
@@ -121,13 +144,14 @@ function render(data) {
 
   $('empty').hidden = Boolean(latest);
   $('results').hidden = !latest;
+  $('first-test').textContent = `First test (${count(data.evaluationGames)} games)`;
+  $('confirmation-test').textContent = `Confirmation (${count(data.confirmationGames)} new games)`;
   $('history').replaceChildren(...[...data.history].reverse().map(row => {
     const tr = document.createElement('tr');
-    const decision = row.promoted ? 'Promoted' : row.confirmation95 ? 'Not confirmed' : 'Not promoted';
-    for (const text of [row.cycle, percent(row.score), percent(row.incumbentScore),
-        `${points(row.delta)} pp (${range(row.confidence95)})`, decision]) {
-      tr.insertCell().textContent = text;
-    }
+    tr.insertCell().textContent = row.cycle;
+    showComparison(tr.insertCell(), row);
+    showComparison(tr.insertCell(), row.confirmation);
+    tr.insertCell().textContent = row.promoted ? 'Promoted' : row.confirmation ? 'Not confirmed' : 'Not promoted';
     return tr;
   }));
   $('replays').textContent = `Training game replays (${count(data.replayCount)})`;

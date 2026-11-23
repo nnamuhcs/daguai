@@ -206,6 +206,10 @@ def controller_running(run):
     return False
 
 
+def match_record(report):
+    return {key: report[key] for key in ("games", "wins", "losses", "draws")}
+
+
 def continuous_progress(run):
     plan = read_json(run / "plan.json")
     state = read_json(run / "progress.json")
@@ -226,19 +230,31 @@ def continuous_progress(run):
     history = []
     for cycle in state["cycles"][-10:]:
         comparison = cycle["pairedComparisons"]["3"]
-        confirmation = (cycle.get("confirmationComparisons") or {}).get("3")
+        paired_confirmation = (cycle.get("confirmationComparisons") or {}).get("3")
+        confirmation = None
+        if paired_confirmation is not None:
+            cycle_dir = run / "cycles" / f"{cycle['cycle']:06d}"
+            candidate = read_json(cycle_dir / "confirmation-candidate-seats-3-fresh.json")
+            incumbent = read_json(cycle_dir / "confirmation-incumbent-seats-3-fresh.json")
+            confirmation = {
+                "score": candidate["score"] if candidate is not None else None,
+                "incumbentScore": incumbent["score"] if incumbent is not None else None,
+                "results": match_record(candidate) if candidate is not None else None,
+                "delta": paired_confirmation["delta"],
+                "confidence95": paired_confirmation["confidence95"],
+            }
         history.append({
             "cycle": cycle["cycle"], "score": cycle["candidateScores"]["3"],
             "incumbentScore": cycle["incumbentScores"]["3"], "delta": comparison["delta"],
             "confidence95": comparison["confidence95"], "assessment": comparison["assessment"],
-            "confirmation95": confirmation["confidence95"] if confirmation is not None else None,
+            "confirmation": confirmation,
             "promoted": cycle["promoted"],
         })
     if history:
         latest = history[-1]
         result = read_json(run / "cycles" / f"{latest['cycle']:06d}" / "candidate-seats-3-fresh.json")
         if result is not None:
-            latest["results"] = {key: result[key] for key in ("games", "wins", "losses", "draws")}
+            latest["results"] = match_record(result)
 
     return {
         "running": running, "status": state["status"], "phase": state["phase"],

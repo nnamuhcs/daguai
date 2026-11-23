@@ -169,3 +169,25 @@ If your best PPO checkpoint is still **v2**, the `--upgrade-to-strategic` option
 ```
 
 The source **must be completed v2 PPO**. Do not pass a v1/v2 Monte Carlo file or an already-v3 PPO file. If `latest.pt` is paused, use the *last verified completed* checkpoint instead. On resuming this new experiment, use the same flags but **omit `--upgrade-to-strategic`**.
+
+## Inspect learning evidence
+
+`npm run learn:evidence` reads the existing run's weight changes, optimizer
+updates, and recent full-team results, showing the first test and separate
+confirmation when available. Use `-- --root path/to/run` for a different run.
+Changed weights don't by themselves establish stronger play.
+
+To compare two frozen checkpoints against the original web heuristic on the
+same side-swapped 3-vs-3 debug deals:
+
+```bash
+npm run learn:evidence -- \
+  --compare-old /path/to/frozen-old.pt --compare-new /path/to/frozen-new.pt \
+  --games 400 --seed 20050000 --decision-samples 100 \
+  --output training/reports/learning-evidence.json
+```
+
+This comparison is exploratory and never promotes either checkpoint. Use
+`--rounds continued` and a separate output file to include tribute and returns.
+To examine *why a specific move may have helped or hurt* under a fixed
+heuristic continuation, see the [counterfactual decision audit](COUNTERFACTUAL_DECISION_AUDIT.md).

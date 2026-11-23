@@ -109,7 +109,7 @@ class DashboardTests(unittest.TestCase):
             self.assertIsNone(live["championCycle"])
             self.assertFalse(dashboard.continuous_progress(root)["running"])
 
-    def test_continuous_confirmation_stays_distinct_from_latest_completed_result(self):
+    def test_continuous_history_includes_both_completed_scores_during_next_confirmation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             state = self.continuous_fixture(root)
@@ -121,17 +121,31 @@ class DashboardTests(unittest.TestCase):
                 "cycle": 1, "candidateScores": {"3": .55}, "incumbentScores": {"3": .50},
                 "pairedComparisons": {"3": {"delta": .05, "confidence95": [.012, .08],
                                            "assessment": "improved"}},
-                "confirmationComparisons": {"3": {"confidence95": [-.03, .06]}},
+                "confirmationComparisons": {"3": {"delta": -.012, "confidence95": [-.035, .0125]}},
                 "promoted": False,
             }]
+            cycle = root / "cycles" / "000001"
+            cycle.mkdir(parents=True)
+            validation = {"games": 400, "wins": 142, "losses": 102, "draws": 156}
+            confirmation = {"games": 1000, "wins": 297, "losses": 321, "draws": 382}
+            (cycle / "candidate-seats-3-fresh.json").write_text(json.dumps(validation))
+            (cycle / "confirmation-candidate-seats-3-fresh.json").write_text(
+                json.dumps({"score": .488, **confirmation}))
+            (cycle / "confirmation-incumbent-seats-3-fresh.json").write_text(json.dumps({"score": .50}))
             (root / "progress.json").write_text(json.dumps(state))
             with (root / ".controller.lock").open("w") as lock:
                 fcntl.flock(lock, fcntl.LOCK_EX)
                 live = dashboard.continuous_progress(root)
             self.assertEqual(live["evaluation"]["label"], "confirmation-candidate")
+            self.assertEqual(live["cycle"], 2)
             self.assertEqual(live["newTrainingGames"], 256)
-            self.assertEqual(live["history"][0]["confirmation95"], [-.03, .06])
-            self.assertFalse(live["history"][0]["promoted"])
+            row = live["history"][0]
+            self.assertEqual((row["score"], row["results"]), (.55, validation))
+            self.assertEqual(row["confirmation"], {
+                "score": .488, "incumbentScore": .50, "results": confirmation,
+                "delta": -.012, "confidence95": [-.035, .0125],
+            })
+            self.assertFalse(row["promoted"])
             self.assertIsNone(live["championCycle"])
 
 if __name__ == "__main__":

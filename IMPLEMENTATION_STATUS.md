@@ -12,8 +12,10 @@ This file describes **verified behavior of the source archive**, not a claim tha
 - New `--upgrade-to-strategic`: score-preserving v2 PPO -> strategic v3 transfer, including checkpoints whose original weights came from v2 Monte Carlo; new optimizer state, explicit PPO-parent provenance.
 - New `training/training_writer.py`: TensorBoard when installed; JSONL metrics fallback only with `DAGUAI_ALLOW_JSON_LOGGER=1` for offline environments.
 - New tests for continuous controller, transfer lineage, score retention, and plan immutability. WSL2 service template and runbook.
+- `learn:evidence` reports parameter changes and separately labeled validation and confirmation results, with an optional 3-vs-3 matched-deal comparison of frozen checkpoints.
+- `learn:decisions` runs bounded counterfactual action comparisons over sampled hidden hands. It is an offline diagnostic, not part of PPO, browser play, or promotion. See [audit design and limits](COUNTERFACTUAL_DECISION_AUDIT.md).
 
-## Verification reported by the supplied archive
+## Verification reported by the earlier continuous-learning archive
 
 | Check | Result |
 | --- | --- |
@@ -34,10 +36,11 @@ The archive did not complete a CPU resume cycle or its full Python suite. Its ch
 - The RTX 5090 completed two eight-game cycles in `training/ppo/continuous-import-smoke-001/`, restarting the controller between cycles. Both checkpoints passed the frozen-policy trace audit, and all 16 training replays are complete.
 - In 12 paired 3-vs-3 games per cycle against the original web AI, the candidates scored 41.7% and 33.3%. This checks the pipeline, not playing strength. No candidate reached confirmation or promotion, no final split was opened, and the browser default stayed unchanged.
 - The service was not installed. Recovery was verified between committed cycles, not after a crash inside a training batch.
+- The counterfactual update passed the JavaScript suite and targeted Python tests. Both audit commands were exercised against local frozen v3 checkpoints; the matched-deal smoke test used only full teams on debug seeds.
 
 ## What remains empirically unproven
 
-- Any statistically reliable improvement over the previous heuristic on held-out deals.
+- Reliable improvement over the original heuristic on the sealed final release split. Selection on separate confirmation deals is not a release result.
 - Calibrated *learned* opponent-hand posteriors; the existing belief sampler and tactical-goal ablations are not equivalent to a proven learned belief model.
 - Game-theoretically sound full-depth information-set search; the existing bounded strategic planner is an experimental approximation, not exhaustive search.
 - Adaptive team coordination in expert-level competitive play.

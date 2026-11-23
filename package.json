@@ -40,7 +40,9 @@
     "eval:release": ".venv/bin/python training/check_release.py",
     "learn:continuous": ".venv/bin/python training/continuous_learn.py",
     "learn:status": ".venv/bin/python training/learner_status.py",
-    "start:champion": "node start-champion.js"
+    "start:champion": "node start-champion.js",
+    "learn:evidence": ".venv/bin/python training/learning_evidence.py",
+    "learn:decisions": ".venv/bin/python training/decision_quality.py"
   },
   "devDependencies": {
     "playwright": "^1.58.0"
